@@ -1,7 +1,7 @@
 """
 Micropython ESP32 library for the 1602A LCD screen with pcf8574 I2C
 interface.
-Based on the Arduino LiquidCrystal_I2C implementation
+Ported from the Arduino LiquidCrystal_I2C implementation
 
 by jOrtegaFreire (BadProgrammer)
 github: https://github.com/jOrtegaFreire
@@ -17,6 +17,7 @@ LCD_ENTRYMODESET            =   0x04
 LCD_DISPLAYCONTROL          =   0x08
 LCD_FUNCTIONSET             =   0x20
 LCD_INIT                    =   0x30
+LCD_SETDDRAMADDR            =   0x80
 
 # flags for display entry mode
 LCD_ENTRYRIGHT              =   0x00
@@ -25,7 +26,7 @@ LCD_ENTRYSHIFTINCREMENT     =   0x01
 LCD_ENTRYSHIFTDECREMENT     =   0x00
 
 # flags for display on/off control
-LCD_DISPLAYON               =   0x0C
+LCD_DISPLAYON               =   0x04
 LCD_DISPLAYOFF              =   0x00
 LCD_CURSORON                =   0x02
 LCD_CURSOROFF               =   0x00
@@ -34,8 +35,8 @@ LCD_BLINKOFF                =   0x00
 
 # flags for display control
 LCD_8BITMODE                =   0x10
-LCD_4BITMODE                =   0X20
-LCD_2LINE                   =   0x28
+LCD_4BITMODE                =   0X00
+LCD_2LINE                   =   0x08
 LCD_1LINE                   =   0x00
 LCD_5x10DOTS                =   0x04
 LCD_5x8DOTS                 =   0x00
@@ -43,6 +44,11 @@ LCD_5x8DOTS                 =   0x00
 # flags for backlight control
 LCD_BACKLIGHT               =   0x08
 LCD_NOBACKLIGHT             =   0x00
+
+# text-aling control
+ALIGN_LEFT                  =   1
+ALIGN_RIGHT                 =   2
+ALIGN_CENTER                =   3
 
 En                          =   0x04
 Rw                          =   0x02
@@ -78,10 +84,10 @@ class LiquidCrystal_I2C:
         sleep_ms(1)
 
         # set 4bit mode
-        self.write4bits(LCD_4BITMODE)
+        self.write4bits(LCD_FUNCTIONSET|LCD_4BITMODE)
 
         # set 2lines mode
-        self.command(LCD_2LINE)
+        self.command(LCD_FUNCTIONSET|LCD_2LINE)
         
         # clear screen
         self.clear()
@@ -89,11 +95,8 @@ class LiquidCrystal_I2C:
         # return home
         self.home()
         
-        # display on
-        self.command(LCD_DISPLAYON)
-
-
-        
+        # display on, cursor on
+        self.command(LCD_DISPLAYCONTROL|LCD_DISPLAYON|LCD_CURSORON)
 
     def clear(self):
         self.command(LCD_CLEARDISPLAY)
@@ -102,6 +105,23 @@ class LiquidCrystal_I2C:
     def home(self):
         self.command(LCD_RETURNHOME)
         sleep_ms(2)
+
+
+    def set_cursor(self,row,col):
+        if row==0:
+            self.command(LCD_SETDDRAMADDR|col)
+        elif row==1:
+            self.command(LCD_SETDDRAMADDR|0x40|col)
+
+
+    # Turn Display on/off
+    def display(self):
+        self.command(LCD_DISPLAYCONTROL|LCD_DISPLAYON)
+        sleep_us(50)
+
+    def noDisplay(self):
+        self.command(LCD_DISPLAYCONTROL|LCD_DISPLAYOFF)
+        sleep_us(50)
 
     # Turn the backlight off/on
     def noBacklight(self):
@@ -128,7 +148,6 @@ class LiquidCrystal_I2C:
         self.write4bits((lownib)|mode)
 
     def write4bits(self,value):
-        print(value)
         self.expanderWrite(value)
         self.pulseEnable(value)
 
@@ -140,15 +159,8 @@ class LiquidCrystal_I2C:
         sleep_us(1)
 
         self.expanderWrite(_data)
-        # self.expanderWrite(_data & ((1<<8)-1-En))
         sleep_us(50)
 
     def print(self,s):
         for c in s:
             self.write(ord(c))
-
-
-
-        
-
-
